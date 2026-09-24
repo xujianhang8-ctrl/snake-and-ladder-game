@@ -1,0 +1,991 @@
+/* 莲花因果棋 — styles.
+   The board artwork is used as-is; everything here is built around its palette:
+   cream paper, gold frame, pond green, vermilion title, merit gold, karma purple. */
+
+:root {
+  color-scheme: light;
+  --bg: #f3efe3;
+  --paper: #fbf7ec;
+  --panel: #f1e3bf;
+  --frame: #c2a467;
+  --frame-soft: #e2d4ae;
+  --ink: #3b2e1e;
+  --ink-soft: #7a6852;
+  --vermilion: #b35230;
+  --pond: #3a6b54;
+  --pond-deep: #2c5442;
+  --merit: #9b7628;
+  --karma: #4d3d74;
+  --pink: #e8a1c0;
+  --gold: #f2c14c;
+  --purple: #b49ddb;
+  --blue: #8fa8ea;
+  --font-ui: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --gutter: 16px;
+  --side-w: 320px;
+  /* The board artwork is 1396 px wide; the art above the control panel plus
+     the frame below it is 1865 px tall, the panel itself 116 px. */
+  --art-ratio: 1.33596; /* (1755 + 110) / 1396 */
+  --full-ratio: 1.41905; /* (1755 + 116 + 110) / 1396 */
+  --panel-min: 72px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--font-ui);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+.sprites {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ---------- page layout ---------- */
+
+.app {
+  min-height: 100%;
+  padding-block: 12px;
+  padding-inline: max(var(--gutter), env(safe-area-inset-left, 0px)) max(var(--gutter), env(safe-area-inset-right, 0px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "bar" "stage" "side";
+  gap: 12px 24px;
+  align-content: start;
+}
+
+.toolbar {
+  grid-area: bar;
+}
+
+.stage {
+  grid-area: stage;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.side {
+  grid-area: side;
+  width: 100%;
+  max-width: 560px;
+  justify-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Stacked (portrait) layout: the board takes the width, capped so it still fits the screen height. */
+.board {
+  width: min(100%, 1396px, calc((100vh - 84px - var(--panel-min)) / var(--art-ratio)), calc((100vh - 84px) / var(--full-ratio)));
+  width: min(100%, 1396px, calc((100dvh - 84px - var(--panel-min)) / var(--art-ratio)), calc((100dvh - 84px) / var(--full-ratio)));
+  min-width: min(100%, 300px);
+}
+
+/* Side-by-side layout for landscape screens: board on the left, fitted to the height. */
+@media (min-aspect-ratio: 4/3) and (min-width: 640px) {
+  .app {
+    height: 100%;
+    grid-template-columns: auto var(--side-w);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "stage bar" "stage side";
+    justify-content: center;
+    align-content: stretch;
+  }
+
+  .stage {
+    align-items: flex-start;
+  }
+
+  .board {
+    width: min(1396px, calc(100vw - var(--side-w) - 2 * var(--gutter) - 24px), calc((100vh - 24px - var(--panel-min)) / var(--art-ratio)), calc((100vh - 24px) / var(--full-ratio)));
+    width: min(1396px, calc(100vw - var(--side-w) - 2 * var(--gutter) - 24px), calc((100dvh - 24px - var(--panel-min)) / var(--art-ratio)), calc((100dvh - 24px) / var(--full-ratio)));
+  }
+
+  .toolbar {
+    padding-top: 6px;
+    justify-content: flex-start;
+  }
+
+  .side {
+    min-height: 0;
+    max-width: none;
+  }
+
+  .log {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .log-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* ---------- toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--frame);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.tool svg {
+  width: 18px;
+  height: 18px;
+  color: var(--pond);
+}
+
+.tool.square {
+  width: 38px;
+  padding: 0;
+  justify-content: center;
+}
+
+.tool.lang {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--pond);
+}
+
+.tool[aria-pressed="false"] svg {
+  color: var(--ink-soft);
+}
+
+.tool:hover {
+  background: #fffdf6;
+  border-color: #a98a45;
+}
+
+:focus-visible {
+  outline: 3px solid var(--pond);
+  outline-offset: 2px;
+}
+
+/* ---------- board ---------- */
+
+.board {
+  position: relative;
+  container: board / inline-size;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-art {
+  position: relative;
+  line-height: 0;
+}
+
+.board-art .art,
+.board-foot {
+  display: block;
+  width: 100%;
+  height: auto;
+  -webkit-user-drag: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The control panel is rebuilt in HTML so it can be used; the frame lines on
+   either side come from a 1 px slice of the artwork stretched to its height. */
+.board-panel {
+  --u: max(calc(100cqw / 1396), calc(var(--panel-min) / 116));
+  height: calc(116 * var(--u));
+  padding: 0 calc(100cqw * 36 / 1396) 0 calc(100cqw * 38 / 1396);
+  background: url("../assets/frame-slice.png") 0 0 / 100% 100% no-repeat;
+}
+
+.panel {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 calc(86 * var(--u)) 0 calc(39 * var(--u));
+  background: var(--panel);
+  border-radius: max(calc(16 * var(--u)), 8px);
+}
+
+.dice {
+  --size: max(calc(50 * var(--u)), 44px);
+  flex: none;
+  width: var(--size);
+  height: var(--size);
+  padding: 0;
+  border: 0;
+  border-radius: 24%;
+  background: none;
+  cursor: pointer;
+}
+
+.dice svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.dice-face {
+  fill: #fffefb;
+  stroke: #c1a062;
+  stroke-width: 5;
+}
+
+.pip {
+  fill: #3b2e1e;
+}
+
+.dice:disabled {
+  cursor: default;
+}
+
+.dice.ready svg {
+  animation: invite 1.8s ease-in-out infinite;
+}
+
+.dice.rolling svg {
+  animation: tumble 0.28s linear infinite;
+}
+
+.dice.landed svg {
+  animation: land 0.35s ease-out;
+}
+
+@keyframes invite {
+  0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 0 rgba(242, 193, 76, 0)); }
+  50% { transform: translateY(-3px); filter: drop-shadow(0 0 6px rgba(242, 193, 76, 0.95)); }
+}
+
+@keyframes tumble {
+  0% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-18%) rotate(18deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-12%) rotate(-16deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes land {
+  0% { transform: scale(1.18); }
+  60% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+.flowers {
+  flex: none;
+  display: flex;
+  gap: calc(22 * var(--u));
+  margin: 0 0 0 calc(23 * var(--u));
+  padding: 0;
+  list-style: none;
+}
+
+.flower {
+  --size: max(calc(31 * var(--u)), 20px);
+  width: var(--size);
+  height: var(--size);
+  transition: opacity 0.3s;
+}
+
+.flower svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+[data-color="pink"] { --c: var(--pink); }
+[data-color="gold"] { --c: var(--gold); }
+[data-color="purple"] { --c: var(--purple); }
+[data-color="blue"] { --c: var(--blue); }
+
+.flower,
+.chip {
+  color: var(--c);
+}
+
+.flower.out {
+  opacity: 0.25;
+}
+
+.flower.current svg {
+  animation: bloom 1.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 3px rgba(255, 250, 230, 1)) drop-shadow(0 0 5px rgba(58, 107, 84, 0.45));
+}
+
+@keyframes bloom {
+  0%, 100% { transform: scale(1.15) rotate(0deg); }
+  50% { transform: scale(1.35) rotate(12deg); }
+}
+
+.status {
+  flex: 1;
+  min-width: 0;
+  margin: 0 calc(28 * var(--u));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.status-last {
+  font-size: max(calc(17 * var(--u)), 12px);
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.status-last:empty {
+  display: none;
+}
+
+.status-now {
+  font-size: max(calc(21 * var(--u)), 14px);
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.status .merit {
+  color: var(--merit);
+}
+
+.status .karma {
+  color: var(--karma);
+}
+
+.reeds {
+  flex: none;
+  width: calc(65 * var(--u));
+  height: calc(74 * var(--u));
+}
+
+/* Narrow boards: stack the four flowers 2 × 2 and drop the decorative reeds. */
+@container board (max-width: 640px) {
+  .panel {
+    padding: 0 calc(22 * var(--u)) 0 calc(26 * var(--u));
+  }
+
+  .flowers {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 3px 5px;
+    margin-left: 12px;
+  }
+
+  .flower {
+    --size: 19px;
+  }
+
+  .status {
+    margin: 0 4px 0 14px;
+  }
+
+  .reeds {
+    display: none;
+  }
+}
+
+/* ---------- tokens and effects (SVG, board pixel units) ---------- */
+
+.token-inner {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+.token-halo {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.token.is-current .token-halo {
+  animation: halo 1.6s ease-in-out infinite;
+}
+
+.token.is-current .token-inner {
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+.token.is-moving .token-inner,
+.token.is-moving .token-halo {
+  animation: none;
+}
+
+@keyframes halo {
+  0%, 100% { opacity: 0.55; transform: scale(0.85); }
+  50% { opacity: 0.95; transform: scale(1.08); }
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.route-glow {
+  fill: none;
+  stroke-width: 26;
+  stroke-linecap: round;
+  opacity: 0.75;
+  filter: url(#blur6);
+}
+
+.route-core {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.route-glow.ladder { stroke: #fff0a8; }
+.route-core.ladder { stroke: #fffbe3; }
+.route-glow.snake { stroke: #9f86e0; }
+.route-core.snake { stroke: #efe8ff; }
+
+.route-glow,
+.route-core {
+  transition: opacity 0.6s ease;
+}
+
+.route-fade {
+  opacity: 0;
+}
+
+.spark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.spark.ladder { fill: #fff3b8; }
+.spark.snake { fill: #6b58a3; }
+
+.float-text {
+  font: 900 44px/1 var(--font-display);
+  paint-order: stroke;
+  stroke: #fffaf0;
+  stroke-width: 8px;
+  stroke-linejoin: round;
+}
+
+.float-text.ladder { fill: #a87a14; }
+.float-text.snake { fill: var(--karma); }
+
+.burst-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.burst-ring {
+  fill: none;
+  stroke: #ffe9a3;
+  stroke-width: 10;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ---------- side panel ---------- */
+
+.side h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--merit);
+}
+
+.player-list,
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.player {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 5px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.player-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.player.is-current {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--frame-soft);
+}
+
+.player .chip {
+  width: 26px;
+  height: 26px;
+  grid-row: span 2;
+}
+
+.player-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e6ddc6;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.player-pos {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.player-bar {
+  grid-column: 2 / -1;
+  height: 4px;
+  border-radius: 2px;
+  background: #e5dcc4;
+  overflow: hidden;
+}
+
+.player-bar i {
+  display: block;
+  height: 100%;
+  width: calc(var(--p, 1) * 1%);
+  background: var(--c);
+  border-radius: inherit;
+  transition: width 0.6s ease;
+}
+
+.log-list li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 2px;
+  border-bottom: 1px dashed #dccfae;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.log-list li:first-child {
+  animation: logIn 0.4s ease-out;
+}
+
+.log-list .chip {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.log-list .merit {
+  color: var(--merit);
+  font-weight: 700;
+}
+
+.log-list .karma {
+  color: var(--karma);
+  font-weight: 700;
+}
+
+.log-list .note {
+  color: var(--ink-soft);
+}
+
+.log-list:empty {
+  display: none;
+}
+
+.log-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+@keyframes logIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- dialogs ---------- */
+
+.sheet {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  /* double gold rule, echoing the board frame */
+  box-shadow:
+    inset 0 0 0 1.5px var(--frame),
+    inset 0 0 0 6px var(--paper),
+    inset 0 0 0 7px var(--frame-soft),
+    0 24px 60px rgba(35, 45, 30, 0.35);
+  overflow: auto;
+}
+
+.sheet::backdrop {
+  background: rgba(32, 56, 44, 0.5);
+}
+
+.sheet[open] {
+  animation: sheetIn 0.28s ease-out;
+}
+
+@keyframes sheetIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 24px 22px;
+}
+
+.sheet-head {
+  text-align: center;
+}
+
+.sheet-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  color: var(--vermilion);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.sheet-sub {
+  margin: 4px 0 0;
+  font-weight: 500;
+  color: #6f9582;
+  letter-spacing: 0.2em;
+}
+
+.field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--merit);
+}
+
+.seg {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border-radius: 999px;
+  background: #ece2c8;
+}
+
+.seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seg label {
+  min-width: 48px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.seg input:checked + label {
+  background: var(--pond);
+  color: #fbf3dc;
+}
+
+.seg input:focus-visible + label {
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.seg.small label {
+  min-width: 0;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.seat {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.seat .chip {
+  width: 28px;
+  height: 28px;
+}
+
+.seat-name {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--frame-soft);
+  border-radius: 10px;
+  background: #fffdf7;
+}
+
+.seat-name:focus-visible {
+  outline: 3px solid var(--pond);
+  outline-offset: 0;
+  border-color: var(--pond);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.choice input {
+  margin: 3px 0 0;
+  accent-color: var(--pond);
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btn {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid var(--frame);
+  border-radius: 999px;
+  background: #fffdf6;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn.primary {
+  border-color: var(--pond);
+  background: var(--pond);
+  color: #fbf3dc;
+}
+
+.btn.primary:hover {
+  background: var(--pond-deep);
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.rules {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  line-height: 1.65;
+}
+
+.rules .gold {
+  color: var(--merit);
+}
+
+.rules .purple {
+  color: var(--karma);
+}
+
+.win .sheet-body {
+  align-items: center;
+  text-align: center;
+  padding-top: 30px;
+}
+
+.win-flower {
+  width: 84px;
+  height: 84px;
+  overflow: visible;
+  animation: winSpin 6s linear infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 236, 170, 0.9));
+}
+
+@keyframes winSpin {
+  to { transform: rotate(360deg); }
+}
+
+.win-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  text-wrap: balance;
+}
+
+.win-stats {
+  margin: -8px 0 0;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.win .sheet-actions {
+  justify-content: center;
+}
+
+/* falling petals when someone wins */
+.petals {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.petal {
+  position: absolute;
+  top: -40px;
+  animation: fall var(--d) linear forwards;
+}
+
+.petal i {
+  display: block;
+  width: 14px;
+  height: 18px;
+  border-radius: 90% 0 90% 0;
+  background: var(--c);
+  opacity: 0.9;
+  animation: sway 1.9s ease-in-out infinite alternate;
+}
+
+@keyframes fall {
+  to { transform: translate3d(var(--dx), calc(100vh + 80px), 0); }
+}
+
+@keyframes sway {
+  from { transform: translateX(-12px) rotate(-30deg); }
+  to { transform: translateX(12px) rotate(50deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

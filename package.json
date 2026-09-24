@@ -1,0 +1,11 @@
+{
+  "name": "lotus-karma-snakes-and-ladders",
+  "version": "1.0.0",
+  "private": true,
+  "description": "莲花因果棋 — an online Snakes & Ladders game on a lotus-pond board.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test tests/*.test.js"
+  }
+}

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>莲花因果棋</title>
+<meta name="description" content="莲花因果棋：在线蛇梯棋。停在金色莲花沿莲径晋升，停在紫色莲花沿莲径退步，最先到达西方极乐世界者胜。">
+<meta name="theme-color" content="#f3efe3">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700;900&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<svg class="sprites" width="0" height="0" aria-hidden="true" focusable="false">
+  <symbol id="flower" viewBox="-32 -32 64 64">
+    <g fill="currentColor">
+      <ellipse cx="0" cy="-14" rx="10.5" ry="13.5"/>
+      <ellipse cx="14" cy="0" rx="13.5" ry="10.5"/>
+      <ellipse cx="0" cy="14" rx="10.5" ry="13.5"/>
+      <ellipse cx="-14" cy="0" rx="13.5" ry="10.5"/>
+    </g>
+    <circle r="5.5" fill="#fbeecb"/>
+  </symbol>
+  <symbol id="i-new" viewBox="0 0 24 24">
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-rules" viewBox="0 0 24 24">
+    <path d="M5 4.5h9.5a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3z M5 16.5a3 3 0 0 1 3-3h9.5 M9 8.5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24">
+    <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>
+    <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24">
+    <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>
+    <path d="M16 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<div class="app">
+  <nav class="toolbar" id="toolbar">
+    <button type="button" class="tool" id="btnNew"><svg aria-hidden="true"><use href="#i-new"/></svg><span data-i18n="newGame">新游戏</span></button>
+    <button type="button" class="tool" id="btnRules"><svg aria-hidden="true"><use href="#i-rules"/></svg><span data-i18n="rules">规则</span></button>
+    <button type="button" class="tool square" id="btnSound" aria-pressed="true"><svg aria-hidden="true"><use href="#i-sound"/></svg></button>
+    <button type="button" class="tool square lang" id="btnLang">EN</button>
+  </nav>
+
+  <main class="stage">
+    <div class="board" id="board">
+      <div class="board-art">
+        <img class="art" id="boardArt" src="assets/board-top.webp" width="1396" height="1755" fetchpriority="high" alt="">
+        <svg class="overlay" viewBox="0 0 1396 1755" aria-hidden="true" focusable="false">
+          <defs>
+            <radialGradient id="tokenShadow">
+              <stop offset="0" stop-color="#0e2419" stop-opacity=".55"/>
+              <stop offset="1" stop-color="#0e2419" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="tokenHalo">
+              <stop offset=".35" stop-color="#fff6cf" stop-opacity=".95"/>
+              <stop offset="1" stop-color="#fff6cf" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="burst">
+              <stop offset="0" stop-color="#fffbe6" stop-opacity="1"/>
+              <stop offset=".45" stop-color="#ffe8a0" stop-opacity=".8"/>
+              <stop offset="1" stop-color="#f2c14c" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>
+          </defs>
+          <g id="fxBack"></g>
+          <g id="tokens"></g>
+          <g id="fxFront"></g>
+        </svg>
+      </div>
+      <div class="board-panel">
+        <div class="panel">
+          <button type="button" class="dice" id="dice" aria-describedby="statusNow">
+            <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+              <rect class="dice-face" x="5" y="5" width="90" height="90" rx="20"/>
+              <circle class="pip" data-pip="tl" cx="29" cy="29" r="8.5"/>
+              <circle class="pip" data-pip="tr" cx="71" cy="29" r="8.5"/>
+              <circle class="pip" data-pip="ml" cx="29" cy="50" r="8.5"/>
+              <circle class="pip" data-pip="c" cx="50" cy="50" r="8.5"/>
+              <circle class="pip" data-pip="mr" cx="71" cy="50" r="8.5"/>
+              <circle class="pip" data-pip="bl" cx="29" cy="71" r="8.5"/>
+              <circle class="pip" data-pip="br" cx="71" cy="71" r="8.5"/>
+            </svg>
+          </button>
+          <ol class="flowers" id="flowers">
+            <li class="flower" data-color="pink"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+            <li class="flower" data-color="gold"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+            <li class="flower" data-color="purple"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+            <li class="flower" data-color="blue"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+          </ol>
+          <div class="status" role="status" aria-live="polite">
+            <p class="status-last" id="statusLast"></p>
+            <p class="status-now" id="statusNow"></p>
+          </div>
+          <img class="reeds" src="assets/reeds.webp" width="65" height="74" alt="">
+        </div>
+      </div>
+      <img class="board-foot" src="assets/board-bottom.webp" width="1396" height="110" alt="">
+    </div>
+  </main>
+
+  <aside class="side">
+    <section class="players" aria-labelledby="playersTitle">
+      <h2 id="playersTitle" data-i18n="playersTitle">玩家</h2>
+      <ul class="player-list" id="playerList"></ul>
+    </section>
+    <section class="log" aria-labelledby="logTitle">
+      <h2 id="logTitle" data-i18n="logTitle">行棋记录</h2>
+      <ol class="log-list" id="logList"></ol>
+      <p class="log-empty" id="logEmpty" data-i18n="logEmpty">尚无记录</p>
+    </section>
+  </aside>
+</div>
+
+<dialog class="sheet" id="setupDialog" aria-labelledby="setupTitle">
+  <form class="sheet-body" id="setupForm">
+    <header class="sheet-head">
+      <h2 class="sheet-title" id="setupTitle" data-i18n="setupTitle">莲花因果棋</h2>
+      <p class="sheet-sub" data-i18n="setupSubtitle">莲池步步生莲</p>
+    </header>
+    <fieldset class="field">
+      <legend data-i18n="playerCount">玩家人数</legend>
+      <div class="seg">
+        <input type="radio" name="count" id="count2" value="2" checked><label for="count2">2</label>
+        <input type="radio" name="count" id="count3" value="3"><label for="count3">3</label>
+        <input type="radio" name="count" id="count4" value="4"><label for="count4">4</label>
+      </div>
+    </fieldset>
+    <ol class="seats" id="seats">
+      <li class="seat" data-color="pink">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name0" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup0">
+          <input type="radio" name="type0" id="type0h" value="human" checked><label for="type0h" data-i18n="you">真人</label>
+          <input type="radio" name="type0" id="type0b" value="bot"><label for="type0b" data-i18n="botTag">电脑</label>
+        </div>
+      </li>
+      <li class="seat" data-color="gold">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name1" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup1">
+          <input type="radio" name="type1" id="type1h" value="human"><label for="type1h" data-i18n="you">真人</label>
+          <input type="radio" name="type1" id="type1b" value="bot" checked><label for="type1b" data-i18n="botTag">电脑</label>
+        </div>
+      </li>
+      <li class="seat" data-color="purple">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name2" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup2">
+          <input type="radio" name="type2" id="type2h" value="human"><label for="type2h" data-i18n="you">真人</label>
+          <input type="radio" name="type2" id="type2b" value="bot" checked><label for="type2b" data-i18n="botTag">电脑</label>
+        </div>
+      </li>
+      <li class="seat" data-color="blue">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name3" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup3">
+          <input type="radio" name="type3" id="type3h" value="human"><label for="type3h" data-i18n="you">真人</label>
+          <input type="radio" name="type3" id="type3b" value="bot" checked><label for="type3b" data-i18n="botTag">电脑</label>
+        </div>
+      </li>
+    </ol>
+    <fieldset class="field">
+      <legend data-i18n="finishRule">终点规则</legend>
+      <label class="choice"><input type="radio" name="finish" id="finishExact" value="exact" checked><span data-i18n="ruleExact">需恰好到达 100，点数超出则原地不动</span></label>
+      <label class="choice"><input type="radio" name="finish" id="finishBounce" value="bounce"><span data-i18n="ruleBounce">点数超出时，到达 100 后反弹后退</span></label>
+    </fieldset>
+    <footer class="sheet-actions">
+      <button type="button" class="btn" id="setupCancel" data-i18n="cancel">取消</button>
+      <button type="submit" class="btn primary" id="setupStart" data-i18n="start">开始游戏</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="rulesDialog" aria-labelledby="rulesTitle">
+  <div class="sheet-body">
+    <h2 class="sheet-title" id="rulesTitle" data-i18n="rulesTitle">游戏规则</h2>
+    <ol class="rules" id="rulesList"></ol>
+    <footer class="sheet-actions">
+      <button type="button" class="btn primary" id="rulesClose" data-i18n="close">知道了</button>
+    </footer>
+  </div>
+</dialog>
+
+<dialog class="sheet win" id="winDialog" aria-labelledby="winTitle">
+  <div class="sheet-body">
+    <svg class="win-flower" id="winFlower" aria-hidden="true"><use href="#flower"/></svg>
+    <h2 class="sheet-title" id="winTitle" data-i18n="winTitle">功德圆满</h2>
+    <p class="win-text" id="winText"></p>
+    <p class="win-stats" id="winStats"></p>
+    <footer class="sheet-actions">
+      <button type="button" class="btn" id="winNew" data-i18n="newGame">新游戏</button>
+      <button type="button" class="btn primary" id="winAgain" data-i18n="playAgain">再来一局</button>
+    </footer>
+  </div>
+  <div class="petals" id="petals" aria-hidden="true"></div>
+</dialog>
+</body>
+</html>
