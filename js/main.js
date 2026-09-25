@@ -2,9 +2,19 @@
 // computer players, setup and win dialogs.
 
 import { CELL_CENTERS, ROUTES } from './board-data.js';
-import { FINAL_SQUARE, FINISH_RULES, createGame, isValidState, rollDie, takeTurn } from './game.js';
+import { FINAL_SQUARE, FINISH_RULES, createGame, isValidState, needsQuestion, planMove, rollDie, takeTurn } from './game.js';
+import { QUESTIONS, QUESTION_BY_ID, shuffled } from './questions.js';
 import { getLang, setLang, t } from './i18n.js';
-import { isSoundEnabled, setSoundEnabled, sfx, unlockAudio } from './audio.js';
+import {
+  canSpeak,
+  isSoundEnabled,
+  onVoicesChanged,
+  setSoundEnabled,
+  sfx,
+  speak,
+  stopSpeaking,
+  unlockAudio,
+} from './audio.js';
 
 // Seat order and colours follow the four flowers in the board's control panel.
 const COLORS = ['pink', 'gold', 'purple', 'blue'];
@@ -36,7 +46,8 @@ const FACES = {
   6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br'],
 };
 
-const EVENT_KINDS = ['moved', 'ladder', 'snake', 'blocked', 'bounced'];
+const EVENT_KINDS = ['moved', 'ladder', 'snake', 'blocked', 'bounced', 'spared', 'wrong'];
+const BOT_ACCURACY = 0.7; // how often a computer player answers a karma question correctly
 const GAME_KEY = 'lotus-karma:game';
 const PREFS_KEY = 'lotus-karma:prefs';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -62,6 +73,12 @@ const el = {
   setupForm: $('setupForm'),
   rulesDialog: $('rulesDialog'),
   winDialog: $('winDialog'),
+  karmaDialog: $('karmaDialog'),
+  karmaAnswers: $('karmaAnswers'),
+  karmaVerdict: $('karmaVerdict'),
+  karmaWhy: $('karmaWhy'),
+  karmaActions: $('karmaActions'),
+  karmaRead: $('karmaRead'),
   petals: $('petals'),
   btnSound: $('btnSound'),
   btnLang: $('btnLang'),
@@ -76,6 +93,10 @@ let rolled = 0;
 let lastEvent = null; // { kind, player, args } shown on the first status line
 let botTimer = 0;
 let generation = 0; // bumps when a new game starts, so stale animations stop
+let deck = []; // question ids still to be asked, so questions don't repeat
+let lastQuestionId = null;
+// The open karma question: how to pick an answer, go on, or cancel it.
+const karma = { choose: null, proceed: null, cancel: null, speakText: '' };
 
 // ---------- helpers ----------
 
@@ -144,6 +165,7 @@ function defaultSetup() {
     count: 2,
     seats: COLORS.map((_, i) => ({ name: '', bot: i > 0 })),
     finishRule: FINISH_RULES.EXACT,
+    questions: true,
   };
 }
 
@@ -154,7 +176,8 @@ function isValidSetup(s) {
     Array.isArray(s.seats) &&
     s.seats.length === COLORS.length &&
     s.seats.every((seat) => seat && typeof seat.name === 'string' && typeof seat.bot === 'boolean') &&
-    Object.values(FINISH_RULES).includes(s.finishRule)
+    Object.values(FINISH_RULES).includes(s.finishRule) &&
+    (s.questions === undefined || typeof s.questions === 'boolean')
   );
 }
 
@@ -162,11 +185,12 @@ function gameFromSetup(s) {
   return createGame({
     players: s.seats.slice(0, s.count).map((seat, i) => ({ name: seat.name, color: COLORS[i], bot: seat.bot })),
     finishRule: s.finishRule,
+    karmaQuestions: s.questions !== false,
   });
 }
 
 function saveGame() {
-  writeStore(GAME_KEY, { version: 1, setup, game, lastEvent });
+  writeStore(GAME_KEY, { version: 2, setup, game, lastEvent, deck });
 }
 
 function savePrefs() {
@@ -464,8 +488,8 @@ function renderStatus() {
   if (lastEvent) {
     const span = document.createElement('span');
     span.textContent = t(lastEvent.kind, nameOf(game.players[lastEvent.player]), ...lastEvent.args);
-    if (lastEvent.kind === 'ladder') span.className = 'merit';
-    if (lastEvent.kind === 'snake') span.className = 'karma';
+    if (lastEvent.kind === 'ladder' || lastEvent.kind === 'spared') span.className = 'merit';
+    if (lastEvent.kind === 'snake' || lastEvent.kind === 'wrong') span.className = 'karma';
     el.statusLast.append(span);
   }
   el.statusNow.textContent = nowText();
@@ -477,6 +501,7 @@ function nowText() {
   const player = game.players[game.current];
   if (phase === 'rolling') return t('rolling', nameOf(player));
   if (phase === 'moving') return t('rolled', nameOf(player), rolled);
+  if (phase === 'answering') return t('answering', nameOf(player));
   return player.bot ? t('turnBot', nameOf(player)) : t('turnHuman', nameOf(player));
 }
 
@@ -558,7 +583,11 @@ function logText(move) {
   else add(t('logMove', move.from, move.landed));
   if (move.bounced) add(` (${t('logBounce')})`, 'note');
   if (move.jump?.type === 'ladder') add(` · ${t('logLadder', move.jump.from, move.jump.to)}`, 'merit');
-  if (move.jump?.type === 'snake') add(` · ${t('logSnake', move.jump.from, move.jump.to)}`, 'karma');
+  if (move.spared) add(` · ${t('logSpared')}`, 'merit');
+  if (move.jump?.type === 'snake') {
+    const text = move.answer === false ? t('logWrong', move.jump.from, move.jump.to) : t('logSnake', move.jump.from, move.jump.to);
+    add(` · ${text}`, 'karma');
+  }
   if (move.won) add(` · ${t('logWin')}`, 'merit');
   return parts;
 }
@@ -624,29 +653,38 @@ function applyStaticText() {
 function resultEvent(move) {
   const player = move.player;
   if (move.blocked) return { kind: 'blocked', player, args: [FINAL_SQUARE - move.from] };
+  if (move.spared) return { kind: 'spared', player, args: [move.landed] };
+  if (move.jump?.type === 'snake' && move.answer === false) return { kind: 'wrong', player, args: [move.jump.from, move.jump.to] };
   if (move.jump) return { kind: move.jump.type, player, args: [move.jump.from, move.jump.to] };
   if (move.bounced) return { kind: 'bounced', player, args: [move.from, move.to] };
   return { kind: 'moved', player, args: [move.from, move.to] };
 }
 
-async function animateMove(move, gen) {
-  const tok = tokens[move.player];
+async function animateSteps(player, plan, gen) {
+  const tok = tokens[player.id];
   tok.g.classList.add('is-moving');
   const [ox, oy] = SLOTS[1][0];
-  for (const square of move.steps) {
+  for (const square of plan.steps) {
     const [cx, cy] = CELL_CENTERS[square];
     await hop(tok, cx + ox, cy + oy);
     if (gen !== generation) return;
     sfx.step();
   }
-  if (move.blocked) {
+  if (plan.blocked) {
     sfx.blocked();
     await shake(tok);
   }
+}
+
+async function animateJump(move, gen) {
+  const tok = tokens[move.player];
   if (move.jump) {
     await wait(160);
     if (gen !== generation) return;
     await travel(tok, move.jump);
+  } else if (move.spared) {
+    spare(tok, move.landed);
+    await wait(650);
   }
   tok.g.classList.remove('is-moving');
 }
@@ -657,6 +695,7 @@ async function roll() {
   busy = true;
   clearTimeout(botTimer);
   unlockAudio();
+  const player = game.players[game.current];
 
   phase = 'rolling';
   renderStatus();
@@ -671,8 +710,24 @@ async function roll() {
   await wait(200);
   if (gen !== generation) return;
 
-  const { state: next, move } = takeTurn(game, value);
-  await animateMove(move, gen);
+  const plan = planMove(player.pos, value, game.finishRule);
+  await animateSteps(player, plan, gen);
+  if (gen !== generation) return;
+
+  let answer = null;
+  if (needsQuestion(game, value)) {
+    phase = 'answering';
+    renderStatus();
+    pulse(plan.landed);
+    sfx.question();
+    await wait(550); // let everyone see the token arrive before the card covers the board
+    if (gen !== generation) return;
+    answer = await askKarmaQuestion(player, plan.landed, gen);
+    if (gen !== generation) return;
+  }
+
+  const { state: next, move } = takeTurn(game, value, answer);
+  await animateJump(move, gen);
   if (gen !== generation) return;
 
   game = next;
@@ -687,6 +742,176 @@ async function roll() {
 
   if (game.winner !== null) await celebrate(gen);
   else scheduleBot();
+}
+
+// ---------- karma questions ----------
+
+function drawQuestion() {
+  if (!deck.length) {
+    deck = shuffled(QUESTIONS.map((q) => q.id));
+    // don't start the new round with the question that ended the last one
+    if (deck.length > 1 && deck.at(-1) === lastQuestionId) [deck[0], deck[deck.length - 1]] = [deck.at(-1), deck[0]];
+  }
+  lastQuestionId = deck.pop();
+  return QUESTION_BY_ID.get(lastQuestionId);
+}
+
+// The question in the current language, with its choices in display order.
+function presentQuestion(q) {
+  const text = q[getLang()];
+  if (q.judge) {
+    const [yes, no] = t('judgeChoices');
+    return {
+      judge: true,
+      question: text.question,
+      prompt: t('judgePrompt'),
+      why: text.why,
+      choices: [
+        { emoji: '👍', label: yes, right: q.answer === true },
+        { emoji: '👎', label: no, right: q.answer === false },
+      ],
+    };
+  }
+  return {
+    judge: false,
+    question: text.question,
+    prompt: '',
+    why: text.why,
+    choices: shuffled(text.choices.map((label, i) => ({ emoji: q.emoji[i], label, right: i === 0 }))),
+  };
+}
+
+function spokenText(shown) {
+  const pause = getLang() === 'zh' ? '。' : '. ';
+  const parts = [shown.question, shown.prompt, ...(shown.judge ? [] : shown.choices.map((c) => c.label))];
+  return parts.filter(Boolean).join(pause);
+}
+
+function updateReadButton() {
+  el.karmaRead.hidden = !canSpeak(getLang());
+}
+
+// Shows a right-or-wrong question and resolves with whether it was answered
+// correctly. Computer players answer on their own after a short think.
+function askKarmaQuestion(player, square, gen) {
+  const shown = presentQuestion(drawQuestion());
+  const timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, duration(ms)));
+
+  $('karmaFlower').style.color = TOKEN_STYLE[player.color].fill;
+  $('karmaIntro').textContent = t('karmaIntro', nameOf(player), square);
+  $('karmaQuestion').textContent = shown.question;
+  $('karmaPrompt').textContent = shown.prompt;
+  el.karmaVerdict.className = 'karma-verdict';
+  el.karmaVerdict.textContent = '';
+  el.karmaWhy.textContent = '';
+  el.karmaActions.hidden = true;
+  el.karmaAnswers.classList.toggle('judge', shown.judge);
+  const buttons = shown.choices.map((choice, i) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'answer';
+    button.disabled = player.bot;
+    const emoji = document.createElement('span');
+    emoji.className = 'answer-emoji';
+    emoji.setAttribute('aria-hidden', 'true');
+    emoji.textContent = choice.emoji;
+    const label = document.createElement('span');
+    label.className = 'answer-text';
+    label.textContent = choice.label;
+    const mark = document.createElement('span');
+    mark.className = 'answer-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    button.append(emoji, label, mark);
+    button.addEventListener('click', () => karma.choose?.(i));
+    return button;
+  });
+  el.karmaAnswers.replaceChildren(...buttons);
+  karma.speakText = spokenText(shown);
+  updateReadButton();
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (right) => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      Object.assign(karma, { choose: null, proceed: null, cancel: null });
+      stopSpeaking();
+      if (el.karmaDialog.open) el.karmaDialog.close();
+      resolve(right);
+    };
+
+    const reveal = (index) => {
+      karma.choose = null;
+      stopSpeaking();
+      const right = shown.choices[index].right;
+      buttons.forEach((button, i) => {
+        button.disabled = true;
+        button.classList.remove('is-picked');
+        if (shown.choices[i].right) button.classList.add('is-right');
+        else if (i === index) button.classList.add('is-wrong');
+        else button.classList.add('is-dim');
+      });
+      (right ? sfx.correct : sfx.wrong)();
+      el.karmaVerdict.className = `karma-verdict ${right ? 'good' : 'bad'}`;
+      el.karmaVerdict.textContent = right ? t('correct') : t('incorrect');
+      const correctLabel = shown.choices.find((c) => c.right).label;
+      el.karmaWhy.textContent = right ? shown.why : `${t('rightAnswer', correctLabel)}${getLang() === 'zh' ? '。' : '. '}${shown.why}`;
+      el.karmaActions.hidden = false;
+      karma.proceed = () => finish(right);
+      if (player.bot) later(() => finish(right), 3200);
+      else $('karmaContinue').focus();
+    };
+
+    karma.cancel = () => finish(false);
+    openDialog(el.karmaDialog);
+
+    if (player.bot) {
+      el.karmaVerdict.className = 'karma-verdict thinking';
+      el.karmaVerdict.textContent = t('botThinking', nameOf(player));
+      later(() => {
+        if (gen !== generation) return finish(false);
+        const rightIndex = shown.choices.findIndex((c) => c.right);
+        const others = shown.choices.map((_, i) => i).filter((i) => i !== rightIndex);
+        const pick = Math.random() < BOT_ACCURACY ? rightIndex : others[Math.floor(Math.random() * others.length)];
+        buttons[pick].classList.add('is-picked');
+        later(() => reveal(pick), 600);
+      }, 1800);
+    } else {
+      karma.choose = reveal;
+      buttons[0].focus();
+      if (isSoundEnabled()) speak(karma.speakText, getLang());
+    }
+  });
+}
+
+function pulse(square) {
+  const [x, y] = CELL_CENTERS[square];
+  for (let i = 0; i < 2; i++) {
+    const ring = svgEl('circle', { cx: x, cy: y, r: 46, class: 'pulse-ring' });
+    el.fxFront.append(ring);
+    ring.animate(
+      [
+        { opacity: 0.95, transform: 'scale(0.7)' },
+        { opacity: 0, transform: 'scale(2.1)' },
+      ],
+      { duration: duration(900), delay: i * duration(260), easing: 'ease-out', fill: 'backwards' },
+    ).onfinish = () => ring.remove();
+  }
+}
+
+function spare(tok, square) {
+  const ring = svgEl('circle', { cx: tok.x, cy: tok.y, r: 42, class: 'burst-ring' });
+  el.fxFront.append(ring);
+  ring.animate(
+    [
+      { opacity: 0.95, transform: 'scale(0.6)' },
+      { opacity: 0, transform: 'scale(2.4)' },
+    ],
+    { duration: duration(1000), easing: 'ease-out' },
+  ).onfinish = () => ring.remove();
+  floatText(square, t('floatSafe'), 'ladder');
 }
 
 async function celebrate(gen) {
@@ -714,6 +939,7 @@ function scheduleBot() {
 function startGame(state, last = null) {
   clearTimeout(botTimer);
   generation += 1;
+  karma.cancel?.();
   game = state;
   busy = false;
   phase = 'idle';
@@ -735,7 +961,7 @@ function openDialog(dialog) {
 }
 
 function anyDialogOpen() {
-  return [el.setupDialog, el.rulesDialog, el.winDialog].some((dialog) => dialog.open);
+  return [el.setupDialog, el.rulesDialog, el.winDialog, el.karmaDialog].some((dialog) => dialog.open);
 }
 
 function updateSeats() {
@@ -752,6 +978,7 @@ function openSetup() {
     $(`type${i}${seat.bot ? 'b' : 'h'}`).checked = true;
   });
   $(setup.finishRule === FINISH_RULES.BOUNCE ? 'finishBounce' : 'finishExact').checked = true;
+  $('questionsOn').checked = setup.questions !== false;
   updateSeats();
   openDialog(el.setupDialog);
 }
@@ -765,6 +992,7 @@ function readSetupForm() {
       bot: fields[`type${i}`].value === 'bot',
     })),
     finishRule: fields.finish.value === FINISH_RULES.BOUNCE ? FINISH_RULES.BOUNCE : FINISH_RULES.EXACT,
+    questions: $('questionsOn').checked,
   };
 }
 
@@ -774,6 +1002,11 @@ function bindEvents() {
   el.dice.addEventListener('click', roll);
 
   document.addEventListener('keydown', (event) => {
+    if (karma.choose && /^[1-3]$/.test(event.key) && Number(event.key) <= el.karmaAnswers.children.length) {
+      event.preventDefault();
+      karma.choose(Number(event.key) - 1);
+      return;
+    }
     if ((event.key !== ' ' && event.key !== 'Enter') || event.repeat || anyDialogOpen()) return;
     if (event.target.closest?.('button, input, select, textarea, a, [contenteditable]')) return;
     if (el.dice.disabled) return;
@@ -827,6 +1060,15 @@ function bindEvents() {
     });
   }
   el.winDialog.addEventListener('close', () => el.petals.replaceChildren());
+
+  $('karmaContinue').addEventListener('click', () => karma.proceed?.());
+  el.karmaRead.addEventListener('click', () => speak(karma.speakText, getLang()));
+  // Escape can't skip a question; once it's answered, Escape moves on.
+  el.karmaDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    karma.proceed?.();
+  });
+  onVoicesChanged(updateReadButton);
 }
 
 function restoredEvent(event, state) {
@@ -849,7 +1091,10 @@ function init() {
   bindEvents();
 
   const saved = readStore(GAME_KEY);
-  setup = isValidSetup(saved?.setup) ? saved.setup : defaultSetup();
+  setup = isValidSetup(saved?.setup) ? { ...saved.setup, questions: saved.setup.questions !== false } : defaultSetup();
+  // Games saved before karma questions existed carry on with the current setting.
+  if (saved?.game && saved.game.karmaQuestions === undefined) saved.game.karmaQuestions = setup.questions;
+  deck = Array.isArray(saved?.deck) ? saved.deck.filter((id) => QUESTION_BY_ID.has(id)) : [];
   const resumable =
     saved &&
     isValidState(saved.game) &&

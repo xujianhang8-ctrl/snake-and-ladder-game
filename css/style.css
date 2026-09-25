@@ -31,6 +31,11 @@
   --panel-min: 72px;
 }
 
+/* English UI: Latin fonts first, so quotes and apostrophes are not set full-width by the CJK font. */
+:root:lang(en) {
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+}
+
 *,
 *::before,
 *::after {
@@ -909,6 +914,252 @@ button {
 
 .rules .purple {
   color: var(--karma);
+}
+
+/* karma question on a purple lotus */
+.karma .sheet-body {
+  gap: 14px;
+}
+
+.karma-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.karma-flower {
+  width: 46px;
+  height: 46px;
+  overflow: visible;
+  filter: drop-shadow(0 0 7px rgba(180, 157, 219, 0.9));
+  animation: bloom 2.4s ease-in-out infinite;
+}
+
+.karma .sheet-title {
+  font-size: 26px;
+  color: var(--karma);
+}
+
+.karma-intro {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-wrap: balance;
+}
+
+.karma-card {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #f2edf9;
+  box-shadow: inset 0 0 0 1px #ddd2f0;
+}
+
+.karma-question {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.karma-prompt {
+  margin: 8px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--karma);
+}
+
+.karma-prompt:empty {
+  display: none;
+}
+
+.read-aloud {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  margin-top: 10px;
+  padding: 0 12px;
+  border: 1px solid #cfc2ea;
+  border-radius: 999px;
+  background: #fffdf7;
+  color: var(--karma);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.read-aloud svg {
+  width: 16px;
+  height: 16px;
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.answers.judge {
+  flex-direction: row;
+}
+
+.answer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--frame-soft);
+  border-radius: 14px;
+  background: #fffdf7;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.15s, opacity 0.2s;
+}
+
+.answers.judge .answer {
+  flex: 1;
+  justify-content: center;
+}
+
+.answer:hover:not(:disabled) {
+  border-color: var(--frame);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.answer:disabled {
+  cursor: default;
+}
+
+.answer-emoji {
+  flex: none;
+  width: 34px;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 28px;
+  line-height: 1;
+  text-align: center;
+}
+
+.answer-text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.answers.judge .answer-text {
+  flex: none;
+  font-weight: 700;
+}
+
+.answer-mark {
+  flex: none;
+  display: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.answer.is-picked {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(180, 157, 219, 0.45);
+}
+
+.answer.is-right {
+  border-color: var(--pond);
+  background: #e5f1e9;
+}
+
+.answer.is-right .answer-mark {
+  display: grid;
+  background: var(--pond);
+}
+
+.answer.is-right .answer-mark::before {
+  content: "✓";
+}
+
+.answer.is-wrong {
+  border-color: var(--vermilion);
+  background: #f9e5df;
+}
+
+.answer.is-wrong .answer-mark {
+  display: grid;
+  background: var(--vermilion);
+}
+
+.answer.is-wrong .answer-mark::before {
+  content: "✗";
+}
+
+.answer.is-dim {
+  opacity: 0.5;
+}
+
+.karma-result {
+  text-align: center;
+}
+
+.karma-verdict,
+.karma-why {
+  margin: 0;
+}
+
+.karma-verdict:empty,
+.karma-why:empty {
+  display: none;
+}
+
+.karma-verdict {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--karma);
+}
+
+.karma-verdict.thinking {
+  animation: thinking 0.9s ease-in-out infinite alternate;
+}
+
+.karma-verdict.good {
+  color: var(--pond);
+}
+
+.karma-verdict.bad {
+  color: var(--vermilion);
+}
+
+.karma-why {
+  margin-top: 4px;
+  color: var(--ink-soft);
+}
+
+.karma-actions {
+  justify-content: center;
+  margin-top: 0;
+}
+
+@keyframes thinking {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
+.pulse-ring {
+  fill: none;
+  stroke: #b49ddb;
+  stroke-width: 9;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .win .sheet-body {

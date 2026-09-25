@@ -20,7 +20,10 @@ export function rollDie(random = Math.random) {
 
 // Where a token standing on `from` ends up after rolling `roll`.
 // Returns every square walked through so the UI can animate the move.
-export function planMove(from, roll, finishRule = FINISH_RULES.EXACT) {
+// `answer` is the result of the karma question asked on a purple lotus:
+// true keeps the token there, false (or null when no question is asked)
+// sends it down the purple path.
+export function planMove(from, roll, finishRule = FINISH_RULES.EXACT, answer = null) {
   const steps = [];
   let pos = from;
   let bounced = false;
@@ -40,15 +43,31 @@ export function planMove(from, roll, finishRule = FINISH_RULES.EXACT) {
 
   const landed = pos;
   let jump = null;
+  let spared = false;
   if (LADDERS[landed]) jump = { type: 'ladder', from: landed, to: LADDERS[landed] };
+  else if (SNAKES[landed] && answer === true) spared = true;
   else if (SNAKES[landed]) jump = { type: 'snake', from: landed, to: SNAKES[landed] };
   const to = jump ? jump.to : landed;
 
-  return { from, roll, steps, landed, jump, to, bounced, blocked, won: to === FINAL_SQUARE };
+  return {
+    from,
+    roll,
+    steps,
+    landed,
+    jump,
+    to,
+    bounced,
+    blocked,
+    answer: SNAKES[landed] ? answer : null,
+    spared,
+    won: to === FINAL_SQUARE,
+  };
 }
 
 // players: [{ name, color, bot }]
-export function createGame({ players, finishRule = FINISH_RULES.EXACT }) {
+// karmaQuestions: stopping on a purple lotus asks a right-or-wrong question
+// first, and only a wrong answer slides the token down.
+export function createGame({ players, finishRule = FINISH_RULES.EXACT, karmaQuestions = false }) {
   if (!Array.isArray(players) || players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) {
     throw new RangeError(`A game needs ${MIN_PLAYERS}-${MAX_PLAYERS} players`);
   }
@@ -66,19 +85,33 @@ export function createGame({ players, finishRule = FINISH_RULES.EXACT }) {
     })),
     current: 0,
     finishRule,
+    karmaQuestions: Boolean(karmaQuestions),
     winner: null,
     history: [],
   };
 }
 
+// True when this roll stops the current player on a purple lotus and the game
+// has to ask its karma question before the move can be completed.
+export function needsQuestion(state, roll) {
+  if (!state.karmaQuestions) return false;
+  const player = state.players[state.current];
+  return Boolean(SNAKES[planMove(player.pos, roll, state.finishRule).landed]);
+}
+
 // Applies one roll for the current player. Returns the new state and the move
-// that was made; the input state is left untouched.
-export function takeTurn(state, roll) {
+// that was made; the input state is left untouched. When needsQuestion() is
+// true, pass whether the karma question was answered correctly.
+export function takeTurn(state, roll, answer = null) {
   if (state.winner !== null) throw new Error('The game is already over');
   if (!Number.isInteger(roll) || roll < 1 || roll > 6) throw new RangeError(`Invalid roll: ${roll}`);
+  const asked = needsQuestion(state, roll);
+  if (asked && typeof answer !== 'boolean') {
+    throw new TypeError('This roll stops on a purple lotus: say whether the question was answered correctly');
+  }
 
   const player = state.players[state.current];
-  const move = { player: player.id, ...planMove(player.pos, roll, state.finishRule) };
+  const move = { player: player.id, ...planMove(player.pos, roll, state.finishRule, asked ? answer : null) };
   const players = state.players.map((p) =>
     p.id === player.id ? { ...p, pos: move.to, rolls: p.rolls + 1 } : p,
   );
@@ -101,6 +134,7 @@ export function isValidState(state) {
   if (!state || !Array.isArray(state.players)) return false;
   if (state.players.length < MIN_PLAYERS || state.players.length > MAX_PLAYERS) return false;
   if (!Object.values(FINISH_RULES).includes(state.finishRule)) return false;
+  if (typeof state.karmaQuestions !== 'boolean') return false;
   if (!Number.isInteger(state.current) || state.current < 0 || state.current >= state.players.length) return false;
   if (state.winner !== null && !state.players.some((p) => p.id === state.winner)) return false;
   if (!Array.isArray(state.history)) return false;

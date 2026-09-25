@@ -171,6 +171,10 @@
       <label class="choice"><input type="radio" name="finish" id="finishExact" value="exact" checked><span data-i18n="ruleExact">需恰好到达 100，点数超出则原地不动</span></label>
       <label class="choice"><input type="radio" name="finish" id="finishBounce" value="bounce"><span data-i18n="ruleBounce">点数超出时，到达 100 后反弹后退</span></label>
     </fieldset>
+    <fieldset class="field">
+      <legend data-i18n="questionsTitle">因果问答</legend>
+      <label class="choice"><input type="checkbox" id="questionsOn" checked><span data-i18n="questionsLabel">停在紫色莲花时回答一道是非题，答对就不用退步</span></label>
+    </fieldset>
     <footer class="sheet-actions">
       <button type="button" class="btn" id="setupCancel" data-i18n="cancel">取消</button>
       <button type="submit" class="btn primary" id="setupStart" data-i18n="start">开始游戏</button>
@@ -184,6 +188,29 @@
     <ol class="rules" id="rulesList"></ol>
     <footer class="sheet-actions">
       <button type="button" class="btn primary" id="rulesClose" data-i18n="close">知道了</button>
+    </footer>
+  </div>
+</dialog>
+
+<dialog class="sheet karma" id="karmaDialog" aria-labelledby="karmaTitle" aria-describedby="karmaQuestion">
+  <div class="sheet-body">
+    <header class="karma-head">
+      <svg class="karma-flower" id="karmaFlower" aria-hidden="true"><use href="#flower"/></svg>
+      <h2 class="sheet-title" id="karmaTitle" data-i18n="karmaTitle">因果考验</h2>
+      <p class="karma-intro" id="karmaIntro"></p>
+    </header>
+    <div class="karma-card">
+      <p class="karma-question" id="karmaQuestion"></p>
+      <p class="karma-prompt" id="karmaPrompt"></p>
+      <button type="button" class="read-aloud" id="karmaRead"><svg aria-hidden="true"><use href="#i-sound"/></svg><span data-i18n="readAloud">读题</span></button>
+    </div>
+    <div class="answers" id="karmaAnswers" role="group" aria-labelledby="karmaQuestion"></div>
+    <div class="karma-result" id="karmaResult" role="status" aria-live="polite">
+      <p class="karma-verdict" id="karmaVerdict"></p>
+      <p class="karma-why" id="karmaWhy"></p>
+    </div>
+    <footer class="sheet-actions karma-actions" id="karmaActions" hidden>
+      <button type="button" class="btn primary" id="karmaContinue" data-i18n="continue">继续</button>
     </footer>
   </div>
 </dialog>

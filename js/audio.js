@@ -111,4 +111,69 @@ export const sfx = {
     bell(ac, 196, 0, 0.22, 3.2);
     [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => bell(ac, f, 0.25 + i * 0.16, 0.13, 2));
   },
+  question() {
+    const ac = audio();
+    if (!ac) return;
+    bell(ac, 659.25, 0, 0.14, 1);
+    bell(ac, 523.25, 0.22, 0.14, 1.2);
+  },
+  correct() {
+    const ac = audio();
+    if (!ac) return;
+    [659.25, 783.99, 1046.5].forEach((f, i) => bell(ac, f, i * 0.1, 0.15, 1.1));
+  },
+  wrong() {
+    const ac = audio();
+    if (!ac) return;
+    tone(ac, { freq: 392, freqEnd: 370, type: 'triangle', dur: 0.25, gain: 0.16 });
+    tone(ac, { freq: 311, freqEnd: 262, type: 'triangle', start: 0.22, dur: 0.45, gain: 0.16 });
+  },
 };
+
+// Reading questions aloud (Web Speech API) for children who are still
+// learning to read. Only offered when the device has a voice for the language.
+
+const speech = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+speech?.getVoices(); // some browsers load voices lazily
+
+function pickVoice(lang) {
+  if (!speech) return null;
+  const voices = speech.getVoices();
+  const prefixes = lang === 'zh' ? ['zh-cn', 'zh-hans', 'zh'] : ['en-us', 'en-gb', 'en'];
+  for (const prefix of prefixes) {
+    const voice = voices.find((v) => v.lang.toLowerCase().replace('_', '-').startsWith(prefix));
+    if (voice) return voice;
+  }
+  return null;
+}
+
+export function canSpeak(lang) {
+  return Boolean(pickVoice(lang));
+}
+
+export function speak(text, lang) {
+  const voice = pickVoice(lang);
+  if (!voice) return;
+  try {
+    speech.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+    utterance.rate = 0.9;
+    speech.speak(utterance);
+  } catch {
+    // speech is optional
+  }
+}
+
+export function stopSpeaking() {
+  try {
+    speech?.cancel();
+  } catch {
+    // speech is optional
+  }
+}
+
+export function onVoicesChanged(callback) {
+  speech?.addEventListener?.('voiceschanged', callback);
+}

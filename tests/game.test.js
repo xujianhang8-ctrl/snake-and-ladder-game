@@ -8,10 +8,12 @@ import {
   START_SQUARE,
   createGame,
   isValidState,
+  needsQuestion,
   planMove,
   rollDie,
   takeTurn,
 } from '../js/game.js';
+import { QUESTIONS, QUESTION_BY_ID, shuffled } from '../js/questions.js';
 
 const twoPlayers = () => [
   { name: 'A', color: 'pink', bot: false },
@@ -158,6 +160,9 @@ test('saved states are validated before resuming', () => {
   assert.equal(isValidState({ ...state, current: 5 }), false);
   assert.equal(isValidState({ ...state, players: state.players.map((p) => ({ ...p, pos: 101 })) }), false);
   assert.equal(isValidState({ ...state, finishRule: 'x' }), false);
+  const { karmaQuestions, ...older } = state;
+  assert.equal(typeof karmaQuestions, 'boolean');
+  assert.equal(isValidState(older), false);
   const played = takeTurn(state, 3).state;
   assert.equal(isValidState(played), true);
   assert.equal(isValidState({ ...played, history: [{ player: 9, roll: 3, from: 1, landed: 4, to: 4 }] }), false);
@@ -180,4 +185,118 @@ test('whole games always finish, under both finishing rules', () => {
       assert.equal(state.players[state.winner].pos, FINAL_SQUARE);
     }
   }
+});
+
+// ---------- karma questions on purple lotuses ----------
+
+const withQuestions = (positions) => {
+  const state = createGame({ players: twoPlayers(), karmaQuestions: true });
+  return { ...state, players: state.players.map((p, i) => ({ ...p, pos: positions[i] ?? p.pos })) };
+};
+
+test('a question is only needed when the roll stops on a purple lotus', () => {
+  const state = withQuestions([12, 1]);
+  assert.equal(needsQuestion(state, 4), true); // 12 + 4 = 16, purple lotus
+  assert.equal(needsQuestion(state, 3), false); // 15, plain lotus
+  assert.equal(needsQuestion(withQuestions([1, 1]), 2), false); // 3 is golden
+  assert.equal(needsQuestion({ ...state, karmaQuestions: false }, 4), false);
+});
+
+test('a right answer keeps the token on the purple lotus', () => {
+  const { state, move } = takeTurn(withQuestions([12, 1]), 4, true);
+  assert.equal(move.landed, 16);
+  assert.equal(move.answer, true);
+  assert.equal(move.spared, true);
+  assert.equal(move.jump, null);
+  assert.equal(state.players[0].pos, 16);
+  assert.equal(state.current, 1);
+});
+
+test('a wrong answer slides the token down the purple path', () => {
+  const { state, move } = takeTurn(withQuestions([12, 1]), 4, false);
+  assert.equal(move.answer, false);
+  assert.equal(move.spared, false);
+  assert.deepEqual(move.jump, { type: 'snake', from: 16, to: 6 });
+  assert.equal(state.players[0].pos, 6);
+});
+
+test('the answer is required on a purple lotus and ignored elsewhere', () => {
+  assert.throws(() => takeTurn(withQuestions([12, 1]), 4), TypeError);
+  const plain = takeTurn(withQuestions([12, 1]), 3, true).move;
+  assert.equal(plain.answer, null);
+  assert.equal(plain.spared, false);
+});
+
+test('with questions switched off, purple lotuses always slide', () => {
+  const state = createGame({ players: twoPlayers() });
+  assert.equal(state.karmaQuestions, false);
+  const staged = { ...state, players: state.players.map((p, i) => (i === 0 ? { ...p, pos: 12 } : p)) };
+  const { move } = takeTurn(staged, 4, true);
+  assert.equal(move.answer, null);
+  assert.equal(move.to, 6);
+});
+
+test('bouncing back onto 95 also asks the question', () => {
+  const state = { ...withQuestions([99, 1]), finishRule: FINISH_RULES.BOUNCE };
+  assert.equal(needsQuestion(state, 6), true);
+  assert.equal(takeTurn(state, 6, true).move.to, 95);
+  assert.equal(takeTurn(state, 6, false).move.to, 75);
+});
+
+test('games with questions always finish', () => {
+  let seed = 11;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+  for (let g = 0; g < 200; g++) {
+    let state = createGame({ players: twoPlayers(), karmaQuestions: true });
+    let turns = 0;
+    while (state.winner === null) {
+      const roll = rollDie(random);
+      const answer = needsQuestion(state, roll) ? random() < 0.7 : null;
+      ({ state } = takeTurn(state, roll, answer));
+      assert.ok(++turns < 5000, 'game terminates');
+    }
+    assert.equal(isValidState(state), true);
+  }
+});
+
+// ---------- the question bank ----------
+
+test('every question is complete in Chinese and English', () => {
+  assert.ok(QUESTIONS.length >= 50, 'plenty of questions to draw from');
+  assert.equal(QUESTION_BY_ID.size, QUESTIONS.length, 'ids are unique');
+  for (const q of QUESTIONS) {
+    for (const lang of ['zh', 'en']) {
+      const text = q[lang];
+      assert.ok(text?.question?.trim(), `${q.id} ${lang} has a question`);
+      assert.ok(text.why?.trim(), `${q.id} ${lang} explains the answer`);
+      if (q.judge) {
+        assert.equal(typeof q.answer, 'boolean', `${q.id} says whether the behaviour is right`);
+        assert.equal(text.choices, undefined);
+      } else {
+        assert.ok(text.choices.length >= 2 && text.choices.length <= 3, `${q.id} ${lang} has 2-3 choices`);
+        assert.ok(text.choices.every((c) => c.trim()), `${q.id} ${lang} choices are filled in`);
+        assert.equal(new Set(text.choices).size, text.choices.length, `${q.id} ${lang} choices differ`);
+      }
+    }
+    if (!q.judge) {
+      assert.equal(q.zh.choices.length, q.en.choices.length, `${q.id} has the same choices in both languages`);
+      assert.equal(q.emoji.length, q.zh.choices.length, `${q.id} has a picture for every choice`);
+    }
+  }
+});
+
+test('the bank mixes right and wrong statements', () => {
+  const judged = QUESTIONS.filter((q) => q.judge);
+  assert.ok(judged.some((q) => q.answer === true));
+  assert.ok(judged.some((q) => q.answer === false));
+});
+
+test('shuffled keeps every item exactly once', () => {
+  const items = [1, 2, 3, 4, 5];
+  const out = shuffled(items);
+  assert.deepEqual([...out].sort(), items);
+  assert.deepEqual(items, [1, 2, 3, 4, 5], 'input left untouched');
 });
