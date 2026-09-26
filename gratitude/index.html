@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Journey to Gratitude</title>
+<meta name="description" content="Journey to Gratitude: an online Snakes &amp; Ladders game. Golden hearts lift you up, purple hearts ask a question about kindness and thankfulness, and the first to reach the Heart of Gratitude wins.">
+<meta name="theme-color" content="#f3efe3">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<svg class="sprites" width="0" height="0" aria-hidden="true" focusable="false">
+  <symbol id="flower" viewBox="-32 -32 64 64">
+    <g fill="currentColor">
+      <ellipse cx="0" cy="-14" rx="10.5" ry="13.5"/>
+      <ellipse cx="14" cy="0" rx="13.5" ry="10.5"/>
+      <ellipse cx="0" cy="14" rx="10.5" ry="13.5"/>
+      <ellipse cx="-14" cy="0" rx="13.5" ry="10.5"/>
+    </g>
+    <circle r="5.5" fill="#fbeecb"/>
+  </symbol>
+  <symbol id="heart" viewBox="-32 -32 64 64">
+    <path d="M0 29.5C-5.4 25 -30 10.6 -30 -7.1C-30 -20.6 -19.2 -28.4 -9.3 -27.8C-3.9 -27.5 -0.9 -24.2 0 -19.1C0.9 -24.2 3.9 -27.5 9.3 -27.8C19.2 -28.4 30 -20.6 30 -7.1C30 10.6 5.4 25 0 29.5Z" fill="currentColor"/>
+    <ellipse cx="-14" cy="-15" rx="8" ry="4.8" transform="rotate(-38 -14 -15)" fill="#fff" fill-opacity=".55"/>
+  </symbol>
+  <symbol id="i-new" viewBox="0 0 24 24">
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-rules" viewBox="0 0 24 24">
+    <path d="M5 4.5h9.5a3 3 0 0 1 3 3v12H8a3 3 0 0 1-3-3z M5 16.5a3 3 0 0 1 3-3h9.5 M9 8.5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24">
+    <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>
+    <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24">
+    <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>
+    <path d="M16 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
+<div class="app">
+  <nav class="toolbar" id="toolbar">
+    <button type="button" class="tool" id="btnNew"><svg aria-hidden="true"><use href="#i-new"/></svg><span data-i18n="newGame">New game</span></button>
+    <button type="button" class="tool" id="btnRules"><svg aria-hidden="true"><use href="#i-rules"/></svg><span data-i18n="rules">Rules</span></button>
+    <button type="button" class="tool square" id="btnSound" aria-pressed="true"><svg aria-hidden="true"><use href="#i-sound"/></svg></button>
+    <button type="button" class="tool square lang" id="btnLang">中文</button>
+  </nav>
+
+  <main class="stage">
+    <div class="board" id="board">
+      <div class="board-art">
+        <svg class="art" id="boardArt" viewBox="0 0 1396 1755" role="img" aria-label="Journey to Gratitude board"></svg>
+        <svg class="overlay" viewBox="0 0 1396 1755" aria-hidden="true" focusable="false">
+          <defs>
+            <radialGradient id="tokenShadow">
+              <stop offset="0" stop-color="#0e2419" stop-opacity=".55"/>
+              <stop offset="1" stop-color="#0e2419" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="tokenHalo">
+              <stop offset=".35" stop-color="#fff6cf" stop-opacity=".95"/>
+              <stop offset="1" stop-color="#fff6cf" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="burst">
+              <stop offset="0" stop-color="#fffbe6" stop-opacity="1"/>
+              <stop offset=".45" stop-color="#ffe0ea" stop-opacity=".8"/>
+              <stop offset="1" stop-color="#f58fb0" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>
+          </defs>
+          <g id="fxBack"></g>
+          <g id="tokens"></g>
+          <g id="fxFront"></g>
+        </svg>
+      </div>
+      <div class="board-panel">
+        <div class="panel">
+          <button type="button" class="dice" id="dice" aria-describedby="statusNow">
+            <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+              <rect class="dice-face" x="5" y="5" width="90" height="90" rx="20"/>
+              <circle class="pip" data-pip="tl" cx="29" cy="29" r="8.5"/>
+              <circle class="pip" data-pip="tr" cx="71" cy="29" r="8.5"/>
+              <circle class="pip" data-pip="ml" cx="29" cy="50" r="8.5"/>
+              <circle class="pip" data-pip="c" cx="50" cy="50" r="8.5"/>
+              <circle class="pip" data-pip="mr" cx="71" cy="50" r="8.5"/>
+              <circle class="pip" data-pip="bl" cx="29" cy="71" r="8.5"/>
+              <circle class="pip" data-pip="br" cx="71" cy="71" r="8.5"/>
+            </svg>
+          </button>
+          <ol class="flowers" id="flowers">
+            <li class="flower" data-color="pink"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+            <li class="flower" data-color="gold"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+            <li class="flower" data-color="purple"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+            <li class="flower" data-color="blue"><svg aria-hidden="true"><use href="#flower"/></svg></li>
+          </ol>
+          <div class="status" role="status" aria-live="polite">
+            <p class="status-last" id="statusLast"></p>
+            <p class="status-now" id="statusNow"></p>
+          </div>
+          <svg class="panel-hearts" viewBox="0 0 66 74" aria-hidden="true" focusable="false">
+            <path d="M30 64.9C26 61.6 8 51 8 38.1C8 28.2 15.9 22.4 23.2 22.9C27.1 23.1 29.3 25.5 30 29.3C30.7 25.5 32.9 23.1 36.8 22.9C44.1 22.4 52 28.2 52 38.1C52 51 34 61.6 30 64.9Z" fill="#ee7c9e" stroke="#c44d73" stroke-width="2" stroke-linejoin="round"/>
+            <ellipse cx="19.5" cy="32" rx="5.5" ry="3.3" transform="rotate(-38 19.5 32)" fill="#fff" fill-opacity=".6"/>
+            <path transform="translate(51 17) rotate(16)" d="M0 11.4C-2.2 9.6 -12 3.8 -12 -3.2C-12 -8.6 -7.7 -11.8 -3.7 -11.5C-1.6 -11.4 -0.4 -10.1 0 -8C0.4 -10.1 1.6 -11.4 3.7 -11.5C7.7 -11.8 12 -8.6 12 -3.2C12 3.8 2.2 9.6 0 11.4Z" fill="#f4b72f" stroke="#ad760c" stroke-width="1.6" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+      <img class="board-foot" src="assets/board-bottom.webp" width="1396" height="110" alt="">
+    </div>
+  </main>
+
+  <aside class="side">
+    <section class="players" aria-labelledby="playersTitle">
+      <h2 id="playersTitle" data-i18n="playersTitle">Players</h2>
+      <ul class="player-list" id="playerList"></ul>
+    </section>
+    <section class="log" aria-labelledby="logTitle">
+      <h2 id="logTitle" data-i18n="logTitle">Moves</h2>
+      <ol class="log-list" id="logList"></ol>
+      <p class="log-empty" id="logEmpty" data-i18n="logEmpty">No moves yet</p>
+    </section>
+  </aside>
+</div>
+
+<dialog class="sheet" id="setupDialog" aria-labelledby="setupTitle">
+  <form class="sheet-body" id="setupForm">
+    <header class="sheet-head">
+      <h2 class="sheet-title" id="setupTitle" data-i18n="setupTitle">Journey to Gratitude</h2>
+      <p class="sheet-sub" data-i18n="setupSubtitle">A thankful heart grows with every step</p>
+    </header>
+    <fieldset class="field">
+      <legend data-i18n="playerCount">Players</legend>
+      <div class="seg">
+        <input type="radio" name="count" id="count2" value="2" checked><label for="count2">2</label>
+        <input type="radio" name="count" id="count3" value="3"><label for="count3">3</label>
+        <input type="radio" name="count" id="count4" value="4"><label for="count4">4</label>
+      </div>
+    </fieldset>
+    <ol class="seats" id="seats">
+      <li class="seat" data-color="pink">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name0" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup0">
+          <input type="radio" name="type0" id="type0h" value="human" checked><label for="type0h" data-i18n="you">Human</label>
+          <input type="radio" name="type0" id="type0b" value="bot"><label for="type0b" data-i18n="botTag">Computer</label>
+        </div>
+      </li>
+      <li class="seat" data-color="gold">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name1" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup1">
+          <input type="radio" name="type1" id="type1h" value="human"><label for="type1h" data-i18n="you">Human</label>
+          <input type="radio" name="type1" id="type1b" value="bot" checked><label for="type1b" data-i18n="botTag">Computer</label>
+        </div>
+      </li>
+      <li class="seat" data-color="purple">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name2" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup2">
+          <input type="radio" name="type2" id="type2h" value="human"><label for="type2h" data-i18n="you">Human</label>
+          <input type="radio" name="type2" id="type2b" value="bot" checked><label for="type2b" data-i18n="botTag">Computer</label>
+        </div>
+      </li>
+      <li class="seat" data-color="blue">
+        <svg class="chip" aria-hidden="true"><use href="#flower"/></svg>
+        <input type="text" class="seat-name" id="name3" maxlength="12" autocomplete="off" spellcheck="false">
+        <div class="seg small" role="radiogroup" id="typeGroup3">
+          <input type="radio" name="type3" id="type3h" value="human"><label for="type3h" data-i18n="you">Human</label>
+          <input type="radio" name="type3" id="type3b" value="bot" checked><label for="type3b" data-i18n="botTag">Computer</label>
+        </div>
+      </li>
+    </ol>
+    <fieldset class="field">
+      <legend data-i18n="finishRule">Finishing</legend>
+      <label class="choice"><input type="radio" name="finish" id="finishExact" value="exact" checked><span data-i18n="ruleExact">Land exactly on 100 — stay put if the roll is too high</span></label>
+      <label class="choice"><input type="radio" name="finish" id="finishBounce" value="bounce"><span data-i18n="ruleBounce">Bounce back from 100 if the roll is too high</span></label>
+    </fieldset>
+    <fieldset class="field">
+      <legend data-i18n="questionsTitle">Heart questions</legend>
+      <label class="choice"><input type="checkbox" id="questionsOn" checked><span data-i18n="questionsLabel">On a purple heart, answer a question. Get it right and you don’t slide down</span></label>
+    </fieldset>
+    <footer class="sheet-actions">
+      <button type="button" class="btn" id="setupCancel" data-i18n="cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="setupStart" data-i18n="start">Start</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="rulesDialog" aria-labelledby="rulesTitle">
+  <div class="sheet-body">
+    <h2 class="sheet-title" id="rulesTitle" data-i18n="rulesTitle">How to play</h2>
+    <ol class="rules" id="rulesList"></ol>
+    <footer class="sheet-actions">
+      <button type="button" class="btn primary" id="rulesClose" data-i18n="close">Got it</button>
+    </footer>
+  </div>
+</dialog>
+
+<dialog class="sheet question" id="questionDialog" aria-labelledby="questionTitle" aria-describedby="questionText">
+  <div class="sheet-body">
+    <header class="question-head">
+      <svg class="question-flower" id="questionFlower" aria-hidden="true"><use href="#flower"/></svg>
+      <h2 class="sheet-title" id="questionTitle" data-i18n="questionTitle">Heart question</h2>
+      <p class="question-intro" id="questionIntro"></p>
+    </header>
+    <div class="question-card">
+      <p class="question-text" id="questionText"></p>
+      <p class="question-prompt" id="questionPrompt"></p>
+      <button type="button" class="read-aloud" id="questionRead"><svg aria-hidden="true"><use href="#i-sound"/></svg><span data-i18n="readAloud">Read aloud</span></button>
+    </div>
+    <div class="answers" id="answers" role="group" aria-labelledby="questionText"></div>
+    <div class="question-result" id="questionResult" role="status" aria-live="polite">
+      <p class="verdict" id="verdict"></p>
+      <p class="why" id="why"></p>
+    </div>
+    <footer class="sheet-actions question-actions" id="questionActions" hidden>
+      <button type="button" class="btn primary" id="questionContinue" data-i18n="continue">Continue</button>
+    </footer>
+  </div>
+</dialog>
+
+<dialog class="sheet win" id="winDialog" aria-labelledby="winTitle">
+  <div class="sheet-body">
+    <svg class="win-heart" id="winHeart" aria-hidden="true"><use href="#heart"/></svg>
+    <h2 class="sheet-title" id="winTitle" data-i18n="winTitle">Full of gratitude!</h2>
+    <p class="win-text" id="winText"></p>
+    <p class="win-stats" id="winStats"></p>
+    <footer class="sheet-actions">
+      <button type="button" class="btn" id="winNew" data-i18n="newGame">New game</button>
+      <button type="button" class="btn primary" id="winAgain" data-i18n="playAgain">Play again</button>
+    </footer>
+  </div>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+</dialog>
+</body>
+</html>

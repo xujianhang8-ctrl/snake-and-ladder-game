@@ -7,6 +7,11 @@ to reach **100 · 西方极乐世界** wins.
 
 ![A game in progress: a token climbing the golden path from 36 to 57](docs/screenshot.webp)
 
+> **Also in this repository: [Journey to Gratitude · 感恩之旅](gratitude/)**, the same game with no
+> religious content. Its board is drawn from scratch with hearts instead of lotuses, a bunch of hearts
+> where the Buddha was, and questions mostly about gratitude. See
+> [gratitude/README.md](gratitude/README.md).
+
 ## Play
 
 - 2–4 players, each seat human or computer, sharing one screen (pass and play).
@@ -82,7 +87,8 @@ npm test
 
 The tests cover the rules (moves, ladders, snakes, karma questions, both finishing rules, turn
 order, saved-game validation, thousands of simulated games), check that the board data matches the
-artwork, and check that every question is complete in both languages.
+artwork, and check that every question is complete in both languages. Journey to Gratitude has its own
+tests in `tests/gratitude.test.js`, run by the same command.
 
 ## How it is built
 
@@ -97,6 +103,7 @@ artwork, and check that every question is complete in both languages.
 | `js/i18n.js` | Chinese and English text |
 | `js/audio.js` | Sound effects synthesised with the Web Audio API, and reading questions aloud |
 | `assets/` | The board artwork, cut into the part above the control panel and the frame below it |
+| `gratitude/` | Journey to Gratitude, a separate copy of the game with its own board, text and questions |
 
 The board is the original artwork, unchanged. The dice and flower panel under it is rebuilt as a
 working control in the same style: the dice rolls, and the four flowers show which seats are in
